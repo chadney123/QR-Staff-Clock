@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Staff Clock-In</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center font-sans">
+
+    <div class="w-full max-w-md bg-blue-600 p-6 shadow-md text-white rounded-b-3xl mb-6">
+        <h1 class="text-xl font-bold">WorkTime Tracker</h1>
+        <p class="text-blue-100 text-sm">Scan QR to log hours</p>
+    </div>
+
+    <main class="w-full max-w-md px-4 space-y-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+            <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Employee Name</label>
+            <input type="text" id="staffName" placeholder="Type your name..." 
+                   class="w-full p-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-lg">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="setAction('IN')" id="btnIn" 
+                    class="py-4 rounded-2xl font-bold border-2 border-green-500 text-green-600 bg-white transition-all active:scale-95">
+                CLOCK IN
+            </button>
+            <button onclick="setAction('OUT')" id="btnOut" 
+                    class="py-4 rounded-2xl font-bold border-2 border-red-500 text-red-600 bg-white transition-all active:scale-95">
+                CLOCK OUT
+            </button>
+        </div>
+
+        <div class="bg-white p-2 rounded-3xl shadow-inner border border-slate-200 overflow-hidden">
+            <div id="reader" class="w-full"></div>
+        </div>
+        
+        <p id="status" class="text-center text-sm font-medium text-slate-400 py-4 italic">Select status and scan code</p>
+    </main>
+
+    <script>
+        let selectedAction = "";
+        const GOOGLE_URL = "YOUR_APPS_SCRIPT_URL_HERE"; 
+
+        function setAction(type) {
+            selectedAction = type;
+            const btnIn = document.getElementById('btnIn');
+            const btnOut = document.getElementById('btnOut');
+            
+            if(type === 'IN') {
+                btnIn.className = "py-4 rounded-2xl font-bold bg-green-500 text-white shadow-lg transition-all";
+                btnOut.className = "py-4 rounded-2xl font-bold border-2 border-red-500 text-red-600 bg-white";
+            } else {
+                btnOut.className = "py-4 rounded-2xl font-bold bg-red-500 text-white shadow-lg transition-all";
+                btnIn.className = "py-4 rounded-2xl font-bold border-2 border-green-500 text-green-600 bg-white";
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            const name = document.getElementById('staffName').value;
+            if (!name || !selectedAction) {
+                alert("⚠️ Please enter your name and select IN or OUT first!");
+                return;
+            }
+
+            document.getElementById('status').innerText = "⏱️ Sending to Cloud...";
+
+            fetch(GOOGLE_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Required for Google Scripts
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, action: selectedAction, location: decodedText })
+            }).then(() => {
+                alert(`✅ Successfully Clocked ${selectedAction} at ${decodedText}`);
+                location.reload();
+            }).catch(err => alert("Error: " + err));
+        }
+
+        const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        scanner.render(onScanSuccess);
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
