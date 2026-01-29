@@ -85,19 +85,26 @@
             if (navigator.vibrate) navigator.vibrate(100);
         }
 
-        function submitRecord(type) {
-            const name = document.getElementById('staffName').value;
-            document.getElementById('status').innerText = "🚀 SENDING...";
+      function submitRecord(type) {
+    const name = document.getElementById('staffName').value;
+    document.getElementById('status').innerText = "🚀 SENDING...";
 
-            fetch(GOOGLE_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ name: name, action: type, location: scannedLocation })
-            }).then(() => {
-                alert(`✅ ${type} Recorded!`);
-                location.reload(); // Reset app for next scan
-            }).catch(err => alert("Error: " + err));
-        }
+    const payload = JSON.stringify({ name: name, action: type, location: scannedLocation });
+
+    fetch(GOOGLE_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' }, // Using text/plain avoids some CORS triggers
+        body: payload
+    })
+    .then(() => {
+        alert("✅ Entry Logged to Sheet!");
+        location.reload();
+    })
+    .catch(err => {
+        alert("Connection Error: " + err);
+    });
+}
 
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     </script>
