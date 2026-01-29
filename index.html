@@ -3,89 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Staff Clock-In</title>
+    <title>Staff Scan</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center font-sans">
+<body class="bg-slate-900 min-h-screen flex flex-col items-center font-sans text-white">
 
-    <div class="w-full max-w-md bg-blue-600 p-6 shadow-md text-white rounded-b-3xl mb-6">
-        <h1 class="text-xl font-bold">WorkTime Tracker</h1>
-        <p class="text-blue-100 text-sm">Scan QR to log hours</p>
+    <div class="w-full max-w-md p-8 text-center">
+        <h1 class="text-3xl font-black tracking-tight text-indigo-400">CHECK-IN</h1>
+        <p class="text-slate-400 text-sm">Step 1: Enter Name & Scan Code</p>
     </div>
 
-    <main class="w-full max-w-md px-4 space-y-4">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-            <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Employee Name</label>
-            <input type="text" id="staffName" placeholder="Type your name..." 
-                   class="w-full p-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-lg">
+    <main class="w-full max-w-md px-6 space-y-6">
+        
+        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-xl">
+            <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Staff Name</label>
+            <input type="text" id="staffName" placeholder="Your Name" oninput="saveName(this.value)"
+                   class="w-full p-4 bg-slate-900 border-2 border-slate-700 rounded-2xl focus:border-indigo-500 outline-none text-xl text-white">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <button onclick="setAction('IN')" id="btnIn" 
-                    class="py-4 rounded-2xl font-bold border-2 border-green-500 text-green-600 bg-white transition-all active:scale-95">
-                CLOCK IN
-            </button>
-            <button onclick="setAction('OUT')" id="btnOut" 
-                    class="py-4 rounded-2xl font-bold border-2 border-red-500 text-red-600 bg-white transition-all active:scale-95">
-                CLOCK OUT
-            </button>
-        </div>
-
-        <div class="bg-white p-2 rounded-3xl shadow-inner border border-slate-200 overflow-hidden">
+        <div class="relative bg-black rounded-[2rem] overflow-hidden border-2 border-slate-700 shadow-2xl">
             <div id="reader" class="w-full"></div>
+            <div id="lock-overlay" class="absolute inset-0 bg-slate-900/80 flex items-center justify-center text-center p-6 transition-opacity duration-500">
+                <p class="font-bold text-indigo-300">Enter name above to start scanner</p>
+            </div>
+        </div>
+
+        <div id="action-area" class="opacity-30 pointer-events-none transition-all duration-500">
+            <p class="text-center text-xs font-bold text-emerald-400 mb-3 uppercase tracking-widest">Location Scanned! Now Choose:</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="submitRecord('IN')" class="py-5 rounded-3xl font-black text-lg bg-emerald-500 text-white shadow-lg active:scale-95 transition-transform">CLOCK IN</button>
+                <button onclick="submitRecord('OUT')" class="py-5 rounded-3xl font-black text-lg bg-rose-500 text-white shadow-lg active:scale-95 transition-transform">CLOCK OUT</button>
+            </div>
+            <p id="locationName" class="text-center mt-3 text-slate-400 font-mono text-sm"></p>
         </div>
         
-        <p id="status" class="text-center text-sm font-medium text-slate-400 py-4 italic">Select status and scan code</p>
+        <p id="status" class="text-center text-xs text-slate-500 pb-10 uppercase italic">Waiting for scan...</p>
     </main>
 
     <script>
-        let selectedAction = "";
+        let scannedLocation = "";
         const GOOGLE_URL = "YOUR_APPS_SCRIPT_URL_HERE"; 
 
-        function setAction(type) {
-            selectedAction = type;
-            const btnIn = document.getElementById('btnIn');
-            const btnOut = document.getElementById('btnOut');
-            
-            if(type === 'IN') {
-                btnIn.className = "py-4 rounded-2xl font-bold bg-green-500 text-white shadow-lg transition-all";
-                btnOut.className = "py-4 rounded-2xl font-bold border-2 border-red-500 text-red-600 bg-white";
-            } else {
-                btnOut.className = "py-4 rounded-2xl font-bold bg-red-500 text-white shadow-lg transition-all";
-                btnIn.className = "py-4 rounded-2xl font-bold border-2 border-green-500 text-green-600 bg-white";
+        window.onload = () => {
+            const savedName = localStorage.getItem('staffName');
+            if (savedName) {
+                document.getElementById('staffName').value = savedName;
+                unlockScanner();
             }
+        };
+
+        function saveName(val) {
+            localStorage.setItem('staffName', val);
+            if(val.length > 2) unlockScanner();
+        }
+
+        function unlockScanner() {
+            document.getElementById('lock-overlay').classList.add('opacity-0', 'pointer-events-none');
+            startScanner();
+        }
+
+        function startScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { 
+                fps: 10, 
+                qrbox: {width: 250, height: 250},
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            });
+            scanner.render(onScanSuccess);
         }
 
         function onScanSuccess(decodedText) {
-            const name = document.getElementById('staffName').value;
-            if (!name || !selectedAction) {
-                alert("⚠️ Please enter your name and select IN or OUT first!");
-                return;
-            }
+            scannedLocation = decodedText;
+            // Reveal the In/Out buttons
+            document.getElementById('action-area').classList.remove('opacity-30', 'pointer-events-none');
+            document.getElementById('locationName').innerText = "Location: " + decodedText;
+            document.getElementById('status').innerText = "✅ Scan Complete. Tap In or Out.";
+            
+            // Subtle vibrate for haptic feedback
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
 
-            document.getElementById('status').innerText = "⏱️ Sending to Cloud...";
+        function submitRecord(type) {
+            const name = document.getElementById('staffName').value;
+            document.getElementById('status').innerText = "🚀 SENDING...";
 
             fetch(GOOGLE_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Required for Google Scripts
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name, action: selectedAction, location: decodedText })
+                mode: 'no-cors',
+                body: JSON.stringify({ name: name, action: type, location: scannedLocation })
             }).then(() => {
-                alert(`✅ Successfully Clocked ${selectedAction} at ${decodedText}`);
-                location.reload();
+                alert(`✅ ${type} Recorded!`);
+                location.reload(); // Reset app for next scan
             }).catch(err => alert("Error: " + err));
         }
 
-        const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-        scanner.render(onScanSuccess);
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     </script>
 </body>
 </html>
